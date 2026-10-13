@@ -1,0 +1,413 @@
+<title>Namma Space Walkthrough</title>
+<meta name="description" content="First-person browser walkthrough of a Gaussian-splat indoor scan — load once, it stays saved.">
+<style>
+  :root{
+    --bg:#070a10; --panel:#0e141f; --panel-2:#131b29;
+    --fg:#e8eef7; --muted:#8a97ab; --line:#1f2a3c;
+    --accent:#49c9ff; --accent-dim:#1d6c8f; --good:#53d7a0; --warn:#ffb454; --bad:#ff6b73;
+    --r:14px; color-scheme:dark;
+    --ui:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    --display:"Sora",var(--ui); --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);overflow:hidden}
+  [hidden]{display:none!important}
+  #stage{position:fixed;inset:0}
+  #stage canvas{display:block;width:100%!important;height:100%!important}
+
+  /* ---- start / load overlay ---- */
+  #overlay{position:fixed;inset:0;display:grid;place-items:center;padding:24px;
+    background:radial-gradient(120% 90% at 50% 0%,rgba(73,201,255,.08),transparent 60%),var(--bg);z-index:30;
+    overflow:auto}
+  .card{width:min(540px,100%);background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:var(--r);padding:28px 26px;
+    box-shadow:0 24px 70px rgba(0,0,0,.55)}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.08;margin:.35rem 0 .2rem;text-wrap:balance}
+  .sub{color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 20px}
+  #drop{border:1.5px dashed var(--accent-dim);border-radius:var(--r);padding:26px 18px;text-align:center;
+    cursor:pointer;transition:border-color .15s,background .15s;background:rgba(73,201,255,.03)}
+  #drop:hover,#drop.hot{border-color:var(--accent);background:rgba(73,201,255,.09)}
+  #drop strong{color:var(--fg);font-size:15px}
+  #drop span{display:block;color:var(--muted);font-size:12.5px;margin-top:6px}
+  .fmts{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px}
+  #saved-row{margin-top:14px;display:none;align-items:center;gap:10px;font-size:13px;color:var(--good);
+    background:rgba(83,215,160,.07);border:1px solid rgba(83,215,160,.25);border-radius:10px;padding:10px 12px}
+  #saved-row.show{display:flex}
+  #saved-row button{margin-left:auto}
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:22px;
+    padding-top:18px;border-top:1px solid var(--line)}
+  .legend div{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)}
+  kbd{font-family:var(--mono);font-size:11px;color:var(--fg);background:#0a0f18;border:1px solid var(--line);
+    border-bottom-width:2px;border-radius:6px;padding:2px 7px;min-width:22px;text-align:center}
+  .note{margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5}
+  .note b{color:var(--fg);font-weight:600}
+
+  button{font:inherit;font-size:12.5px;font-weight:500;color:var(--fg);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;
+    transition:border-color .12s,color .12s,background .12s}
+  button:hover{border-color:var(--accent-dim)}
+  button.primary{background:var(--accent);color:#05222e;border-color:var(--accent);font-weight:600}
+  button.on{border-color:var(--accent);color:var(--accent)}
+  button.danger:hover{border-color:var(--bad);color:var(--bad)}
+
+  /* ---- loading ---- */
+  #loading{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;background:var(--bg);z-index:40}
+  #loading.show{display:flex}
+  #loadlabel{font-family:var(--mono);font-size:13px;color:var(--fg);letter-spacing:.03em}
+  .bar{width:min(340px,74vw);height:7px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent-dim),var(--accent));
+    border-radius:99px;transition:width .18s}
+  #loadsub{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+  /* ---- in-world HUD ---- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:20;display:none}
+  #hud.show{display:block}
+  #cross{position:absolute;left:50%;top:50%;width:14px;height:14px;transform:translate(-50%,-50%);opacity:.6}
+  #cross::before,#cross::after{content:"";position:absolute;background:var(--fg)}
+  #cross::before{left:6px;top:0;width:2px;height:14px}
+  #cross::after{top:6px;left:0;height:2px;width:14px}
+  #hint{position:absolute;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+    font-family:var(--mono);font-size:12px;color:var(--muted);background:rgba(7,10,16,.72);
+    border:1px solid var(--line);border-radius:99px;padding:7px 14px;white-space:nowrap;backdrop-filter:blur(6px)}
+  #stats{position:absolute;right:14px;top:calc(12px + env(safe-area-inset-top,0px));
+    font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;line-height:1.7}
+  #stats b{color:var(--accent);font-weight:600}
+
+  /* ---- toolbar (shown once a scene is loaded) ---- */
+  #bar{position:fixed;left:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:22;
+    display:none;flex-wrap:wrap;gap:7px;align-items:center;max-width:calc(100vw - 24px);
+    background:rgba(10,15,25,.82);border:1px solid var(--line);border-radius:12px;padding:8px 10px;
+    backdrop-filter:blur(8px)}
+  #bar.show{display:flex}
+  #bar .name{font-family:var(--mono);font-size:11.5px;color:var(--fg);max-width:170px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  #bar .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  #bar .sep{width:1px;height:18px;background:var(--line);margin:0 2px}
+
+  #resume{position:fixed;inset:0;display:none;place-items:center;z-index:25;cursor:pointer;
+    background:rgba(7,10,16,.5);backdrop-filter:blur(3px)}
+  #resume.show{display:grid}
+  #resume div{font-family:var(--display);font-size:18px;color:var(--fg);background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--r);padding:16px 26px}
+
+  #toast{position:fixed;left:50%;bottom:calc(74px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+    background:var(--panel);border:1px solid var(--line);color:var(--fg);font-size:13px;padding:10px 16px;
+    border-radius:10px;z-index:50;display:none;max-width:88vw;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  #toast.show{display:block}
+  #toast.err{background:#2a1113;border-color:#5b2327;color:#ffd9dc}
+  @media (max-width:420px){ .legend{grid-template-columns:1fr} h1{font-size:25px} }
+</style>
+
+<div id="stage"></div>
+
+<div id="hud">
+  <div id="cross"></div>
+  <div id="stats"></div>
+  <div id="hint">WASD move · drag/mouse look · <kbd>Shift</kbd> run · <kbd>Space</kbd>/<kbd>C</kbd> up·down · <kbd>Esc</kbd> release</div>
+</div>
+
+<div id="bar">
+  <span class="name" id="barName">scene</span>
+  <span class="meta" id="barMeta"></span>
+  <span class="sep"></span>
+  <button data-act="walk" class="on">Walk</button>
+  <button data-act="orbit">Orbit</button>
+  <button data-act="reset">Reset</button>
+  <button data-act="tilt">Fix tilt</button>
+  <span class="sep"></span>
+  <button data-act="replace">Replace</button>
+  <button data-act="clear" class="danger">Clear saved</button>
+</div>
+
+<div id="resume"><div>Click to keep walking</div></div>
+
+<div id="overlay">
+  <div class="card">
+    <div class="eyebrow">Namma Space · Round 1</div>
+    <h1>Walk through your room</h1>
+    <p class="sub">A first-person viewer for a photorealistic Gaussian-splat scan of an indoor space. Load your scan once — it's saved in this browser and reopens instantly next time.</p>
+
+    <div id="drop" tabindex="0" role="button" aria-label="Load a scan file">
+      <strong>Drop a scan here, or click to choose</strong>
+      <span>Your Scaniverse export (Gaussian Splat → Share → PLY)</span>
+      <div class="fmts">.ply · .ksplat · .splat</div>
+    </div>
+    <input id="file" type="file" accept=".ply,.ksplat,.splat" hidden>
+
+    <div id="saved-row">
+      <span id="saved-text">Found a saved scan.</span>
+      <button class="primary" id="btnRestore">Reopen it</button>
+    </div>
+
+    <div class="legend">
+      <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk</div>
+      <div><span style="font-family:var(--mono)">mouse</span> look around</div>
+      <div><kbd>Shift</kbd> run faster</div>
+      <div><kbd>Space</kbd>/<kbd>C</kbd> rise · descend</div>
+      <div><kbd>Esc</kbd> free the cursor</div>
+      <div><kbd>[</kbd><kbd>]</kbd> fix tilt · <kbd>R</kbd> reset</div>
+    </div>
+
+    <p class="note">The file never leaves your device — it loads straight into the browser and is cached here on this machine. If the room looks tilted, press <b>[</b> / <b>]</b> to roll it upright. Big <b>.ply</b> scans load faster if you convert them to <b>.ksplat</b> in SuperSplat first.</p>
+  </div>
+</div>
+
+<div id="loading">
+  <div id="loadlabel">Preparing…</div>
+  <div class="bar"><i id="barfill"></i></div>
+  <div id="loadsub"></div>
+</div>
+<div id="toast"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/",
+    "@mkkellogg/gaussian-splats-3d": "https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+const $ = id => document.getElementById(id);
+const stage=$('stage'), overlay=$('overlay'), hud=$('hud'), bar=$('bar'),
+      loading=$('loading'), barfill=$('barfill'), loadlabel=$('loadlabel'), loadsub=$('loadsub'),
+      resume=$('resume'), statsEl=$('stats');
+
+const renderer = new THREE.WebGLRenderer({ antialias:false, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+stage.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.05, 1000);
+camera.position.set(0,0,0);
+const walkCtl = new PointerLockControls(camera, renderer.domElement);
+const orbitCtl = new OrbitControls(camera, renderer.domElement);
+orbitCtl.enableDamping = true; orbitCtl.dampingFactor = 0.08; orbitCtl.enabled = false;
+
+let viewer=null, running=false, loaded=false, mode='walk';
+let speed=1.8, rollSteps=0, sceneCenter=new THREE.Vector3(), sceneRadius=1;
+const keys=Object.create(null), clock=new THREE.Clock();
+
+/* ---------- tiny UI helpers ---------- */
+function toast(msg, isErr){ const t=$('toast'); t.textContent=msg; t.classList.toggle('err',!!isErr);
+  t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),4500); }
+function showLoading(label){ loadlabel.textContent=label||'Loading scan…'; loadsub.textContent='';
+  barfill.style.width='0%'; loading.classList.add('show'); }
+function setProgress(p,sub){ barfill.style.width=Math.max(0,Math.min(100,p||0)).toFixed(0)+'%';
+  if(sub!=null) loadsub.textContent=sub; }
+function hideLoading(){ loading.classList.remove('show'); }
+const mb = b => (b/1048576).toFixed(1)+' MB';
+
+function fmtFromName(name){ const n=(name||'').toLowerCase();
+  if(n.endsWith('.ksplat')) return GaussianSplats3D.SceneFormat.KSplat;
+  if(n.endsWith('.splat'))  return GaussianSplats3D.SceneFormat.Splat;
+  return GaussianSplats3D.SceneFormat.Ply; }
+
+/* ---------- IndexedDB: persist the last scan ---------- */
+const DB='nammaspace', STORE='scan';
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(STORE);
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function idbSet(key,val){ try{ const db=await idb(); return await new Promise((res,rej)=>{
+  const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(val,key);
+  tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); }); }catch(e){ return false; } }
+async function idbGet(key){ try{ const db=await idb(); return await new Promise((res,rej)=>{
+  const tx=db.transaction(STORE,'readonly'); const rq=tx.objectStore(STORE).get(key);
+  rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }catch(e){ return undefined; } }
+async function idbDel(key){ try{ const db=await idb(); return await new Promise((res)=>{
+  const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).delete(key);
+  tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); }); }catch(e){ return false; } }
+
+/* ---------- viewer core ---------- */
+function newViewer(){
+  viewer = new GaussianSplats3D.Viewer({
+    selfDrivenMode:false, useBuiltInControls:false,
+    renderer, camera, sharedMemoryForWorkers:false,
+    gpuAcceleratedSort:true, antialiased:true, sphericalHarmonicsDegree:0
+  });
+}
+
+/* load from an ArrayBuffer (already in memory) */
+async function loadBuffer(buffer, name, roll){
+  overlay.style.display='none';
+  showLoading('Building splats…'); setProgress(2, name+' · '+mb(buffer.byteLength));
+  try{
+    if(viewer){ try{ await viewer.dispose(); }catch(e){} viewer=null; }
+    newViewer();
+    const blob=new Blob([buffer]); const url=URL.createObjectURL(blob);
+    await viewer.addSplatScene(url, {
+      format:fmtFromName(name), progressiveLoad:false, splatAlphaRemovalThreshold:5, showLoadingUI:false,
+      onProgress:(pct,lbl)=>setProgress(pct, name+' · '+mb(buffer.byteLength))
+    });
+    URL.revokeObjectURL(url);
+    hideLoading(); loaded=true;
+    rollSteps=0; for(let i=0;i<((roll||0)%4+4)%4;i++) applyRoll(1,false);
+    hud.classList.add('show'); bar.classList.add('show');
+    $('barName').textContent=name;
+    const cnt = viewer.splatMesh && viewer.splatMesh.getSplatCount ? viewer.splatMesh.getSplatCount() : null;
+    $('barMeta').textContent=(cnt?cnt.toLocaleString()+' splats · ':'')+mb(buffer.byteLength);
+    if(!running){ running=true; clock.start(); animate(); }
+    frameScene();
+    setMode('walk');
+  }catch(err){
+    hideLoading(); overlay.style.display='grid';
+    toast('Could not load that file: '+(err&&err.message?err.message:err), true);
+    console.error(err);
+  }
+}
+
+/* read a File with progress, cache it, then load */
+async function loadFile(file){
+  overlay.style.display='none';
+  showLoading('Reading file…'); setProgress(0, file.name+' · '+mb(file.size));
+  const buffer = await new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onprogress=e=>{ if(e.lengthComputable) setProgress(e.loaded/e.total*100, file.name+' · '+mb(e.loaded)+' / '+mb(e.total)); };
+    fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error);
+    fr.readAsArrayBuffer(file);
+  }).catch(err=>{ hideLoading(); overlay.style.display='grid'; toast('Could not read file: '+err,true); return null; });
+  if(!buffer) return;
+  const saved = await idbSet('last', {name:file.name, buffer, roll:0, ts:Date.now()});
+  await loadBuffer(buffer, file.name, 0);
+  if(saved) toast('Scan saved in this browser — it reopens automatically.');
+  else toast('Loaded (couldn’t cache for next time — private window?).');
+}
+
+function sceneRoot(){ return viewer && viewer.splatMesh ? viewer.splatMesh : null; }
+
+function measureScene(){
+  const root=sceneRoot(); if(!root) return;
+  const box=new THREE.Box3().setFromObject(root);
+  if(box.isEmpty()) return;
+  box.getCenter(sceneCenter);
+  const size=box.getSize(new THREE.Vector3());
+  sceneRadius=Math.max(size.x,size.z)*0.5+0.1;
+  speed=Math.max(0.8, Math.min(4, sceneRadius*0.4));
+}
+function frameScene(){
+  measureScene(); const root=sceneRoot(); if(!root) return;
+  const size=new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3());
+  camera.position.set(sceneCenter.x, sceneCenter.y+size.y*0.05, sceneCenter.z+sceneRadius);
+  camera.lookAt(sceneCenter);
+  orbitCtl.target.copy(sceneCenter); orbitCtl.update();
+}
+function applyRoll(dir, persist=true){
+  const root=sceneRoot(); if(!root) return;
+  root.rotateX(dir*Math.PI/2); rollSteps=(((rollSteps+dir)%4)+4)%4;
+  frameScene();
+  if(persist) idbGet('last').then(v=>{ if(v){ v.roll=rollSteps; idbSet('last',v); } });
+}
+
+function setMode(m){
+  mode=m;
+  const walk = m==='walk';
+  orbitCtl.enabled = !walk;
+  bar.querySelector('[data-act="walk"]').classList.toggle('on', walk);
+  bar.querySelector('[data-act="orbit"]').classList.toggle('on', !walk);
+  $('hint').style.display = walk ? '' : 'none';
+  $('cross').style.display = walk ? '' : 'none';
+  if(walk){ orbitCtl.enabled=false; }
+  else { if(walkCtl.isLocked) walkCtl.unlock(); resume.classList.remove('show'); frameScene(); }
+}
+
+/* ---------- inputs ---------- */
+const drop=$('drop'), fileInput=$('file');
+drop.addEventListener('click', ()=>fileInput.click());
+drop.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' ') fileInput.click(); });
+fileInput.addEventListener('change', e=>{ const f=e.target.files[0]; if(f) loadFile(f); fileInput.value=''; });
+['dragenter','dragover'].forEach(ev=>overlay.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('hot');}));
+['dragleave','drop'].forEach(ev=>overlay.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hot');}));
+overlay.addEventListener('drop', e=>{ const f=e.dataTransfer&&e.dataTransfer.files[0]; if(f) loadFile(f); });
+$('btnRestore').addEventListener('click', restoreSaved);
+
+bar.addEventListener('click', e=>{
+  const act=e.target.getAttribute && e.target.getAttribute('data-act'); if(!act) return;
+  if(act==='walk')  setMode('walk');
+  if(act==='orbit') setMode('orbit');
+  if(act==='reset') frameScene();
+  if(act==='tilt')  applyRoll(1);
+  if(act==='replace') fileInput.click();
+  if(act==='clear'){ idbDel('last'); toast('Saved scan cleared from this browser.'); }
+});
+
+/* pointer lock (walk mode only) */
+renderer.domElement.addEventListener('click', ()=>{ if(loaded && mode==='walk') walkCtl.lock(); });
+resume.addEventListener('click', ()=>{ if(mode==='walk') walkCtl.lock(); });
+walkCtl.addEventListener('lock',   ()=>resume.classList.remove('show'));
+walkCtl.addEventListener('unlock', ()=>{ if(loaded && mode==='walk') resume.classList.add('show'); });
+
+addEventListener('keydown', e=>{ keys[e.code]=true;
+  if(e.code==='BracketLeft')  applyRoll(-1);
+  if(e.code==='BracketRight') applyRoll(1);
+  if(e.code==='KeyR') frameScene();
+});
+addEventListener('keyup', e=>{ keys[e.code]=false; });
+
+function updateMove(dt){
+  if(mode!=='walk' || !walkCtl.isLocked) return;
+  const run=(keys['ShiftLeft']||keys['ShiftRight'])?3:1;
+  const v=speed*run*dt;
+  if(keys['KeyW']) walkCtl.moveForward(v);
+  if(keys['KeyS']) walkCtl.moveForward(-v);
+  if(keys['KeyA']) walkCtl.moveRight(-v);
+  if(keys['KeyD']) walkCtl.moveRight(v);
+  if(keys['Space']) camera.position.y+=v;
+  if(keys['KeyC']||keys['ControlLeft']) camera.position.y-=v;
+}
+
+let fpsT=0, frames=0, fps=0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.05);
+  updateMove(dt);
+  if(mode==='orbit') orbitCtl.update();
+  if(viewer && viewer.splatMesh){ viewer.update(); viewer.render(); }
+  frames++; fpsT+=dt;
+  if(fpsT>=0.5){ fps=Math.round(frames/fpsT); frames=0; fpsT=0;
+    const p=camera.position;
+    statsEl.innerHTML=`<b>${fps}</b> fps<br>x ${p.x.toFixed(1)}  y ${p.y.toFixed(1)}  z ${p.z.toFixed(1)}`; }
+}
+
+addEventListener('resize', ()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+/* ---------- startup: saved scan → bundled scene → load panel ---------- */
+async function restoreSaved(){
+  const v=await idbGet('last'); if(!v||!v.buffer){ toast('No saved scan found.',true); return; }
+  loadBuffer(v.buffer, v.name||'saved scan', v.roll||0);
+}
+(async function boot(){
+  // 1) a scan saved earlier in this browser
+  const v=await idbGet('last');
+  if(v && v.buffer){
+    $('saved-text').textContent='Saved scan: '+(v.name||'scan')+' · '+mb(v.buffer.byteLength);
+    $('saved-row').classList.add('show');
+    restoreSaved();                      // auto-reopen; overlay stays underneath if it fails
+    return;
+  }
+  // 2) a scan bundled next to this file (GitHub Pages: scene.ksplat / scene.ply / scene.splat)
+  for(const f of ['scene.ksplat','scene.ply','scene.splat']){
+    try{ const head=await fetch(f,{method:'HEAD'});
+      if(head.ok){ overlay.style.display='none'; showLoading('Loading '+f+'…');
+        newViewer();
+        await viewer.addSplatScene(f,{format:fmtFromName(f),progressiveLoad:false,
+          splatAlphaRemovalThreshold:5,showLoadingUI:false,onProgress:p=>setProgress(p)});
+        hideLoading(); loaded=true; hud.classList.add('show'); bar.classList.add('show');
+        $('barName').textContent=f; running=true; clock.start(); animate(); frameScene(); setMode('walk');
+        return; }
+    }catch(e){ /* blocked/missing — ignore */ }
+  }
+  // 3) nothing saved or bundled — show the load panel (default)
+})();
+</script>
