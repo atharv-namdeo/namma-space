@@ -1,0 +1,96 @@
+<!doctype html><meta charset='utf-8'>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@page { size: A4; margin: 13mm 14mm; }
+*{box-sizing:border-box}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif;color:#1b2733;margin:0;font-size:12.3px;line-height:1.5}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.head{display:flex;align-items:flex-start;gap:14px;border-bottom:3px solid #0ea5a4;padding-bottom:12px;margin-bottom:16px}
+.badge{flex:none;width:46px;height:46px;border-radius:12px;background:#0ea5a4;color:#fff;font-weight:800;font-size:20px;
+  display:flex;align-items:center;justify-content:center}
+.badge.alt{background:#6366f1}.badge.rec{background:#0ea5a4}.badge.warn{background:#f59e0b}.badge.gray{background:#64748b}
+.head h1{margin:0;font-size:21px;font-weight:800;letter-spacing:-.2px;line-height:1.1}
+.head .sup{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#0ea5a4;font-weight:700}
+.head .sub{margin:3px 0 0;color:#5b6b7b;font-size:12px}
+.rec-pill{margin-left:auto;flex:none;background:#e6f7f6;color:#0a7d7a;border:1px solid #9fdedb;border-radius:999px;
+  padding:5px 12px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.rec-pill.red{background:#fdeaea;color:#b4232a;border-color:#f3b4b7}
+.rec-pill.amber{background:#fef3e0;color:#9a6508;border-color:#f3d8a3}
+h2{font-size:13.5px;font-weight:800;margin:18px 0 8px;padding-left:10px;border-left:4px solid #0ea5a4;letter-spacing:-.1px}
+.tldr{background:#f4fbfb;border:1px solid #bfe9e7;border-radius:12px;padding:12px 15px;margin:4px 0 6px;font-size:12.6px}
+.tldr b{color:#0a7d7a}
+.diagram{border:1px solid #e7edf2;border-radius:12px;padding:14px 12px 8px;margin:8px 0;background:#fff}
+.steps{counter-reset:s;margin:6px 0;padding:0;list-style:none}
+.steps li{counter-increment:s;position:relative;padding:4px 0 8px 30px;border-left:1.5px solid #e3e9ee;margin-left:11px}
+.steps li:last-child{border-left-color:transparent}
+.steps li::before{content:counter(s);position:absolute;left:-11px;top:2px;width:22px;height:22px;border-radius:50%;
+  background:#0ea5a4;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.steps li b{color:#12343a}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0}
+.col{border-radius:11px;padding:11px 13px;font-size:11.8px}
+.col.pro{background:#f0faf3;border:1px solid #bfe6cb}.col.con{background:#fdf1f1;border:1px solid #f1c9cb}
+.col h3{margin:0 0 6px;font-size:12px}.col.pro h3{color:#1a7e3f}.col.con h3{color:#b4232a}
+.col ul{margin:0;padding-left:16px}.col li{margin:3px 0}
+.box{border-radius:11px;padding:11px 14px;margin:8px 0;font-size:11.8px}
+.box.did{background:#fff8ec;border:1px solid #f3d9a5}.box.did b{color:#9a6508}
+.box.verdict{background:#eef7ff;border:1px solid #bcd9f5}.box.verdict b{color:#1760a8}
+.box .t{font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.box.did .t{color:#9a6508}.box.verdict .t{color:#1760a8}
+table{border-collapse:collapse;width:100%;font-size:10.6px;margin:8px 0}
+th,td{border:1px solid #e3e9ee;padding:6px 7px;text-align:left;vertical-align:top}
+th{background:#f3f7f9;font-weight:700;font-size:10.2px}
+td .tag{font-weight:700}
+.g{color:#1a7e3f}.r{color:#b4232a}.a{color:#9a6508}
+.foot{margin-top:18px;border-top:1px solid #e7edf2;padding-top:8px;color:#8c9aa7;font-size:9.6px;display:flex;justify-content:space-between}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin:6px 0}
+.chip{font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px;background:#eef2f5;color:#44525f}
+.avoid{break-inside:avoid}
+small{color:#6b7a89}
+</style>
+<div class='head'><div class='badge rec'>&#9733;</div><div><div class='sup'>Namma Space &middot; Round 1 &middot; Summary</div><h1>All your options, and where we are</h1><p class='sub'>A one-page map of every way to build the 3D room &mdash; and the plan.</p></div><div class="rec-pill ">Start here</div></div><div class='tldr'><b>The goal:</b> turn an ordinary phone video of a room into a <b>photorealistic, walk-through 3D web page</b> &mdash; no install, runs in a browser. <b>The core choice</b> is how to build the 3D model. There are 5 realistic ways; this pack has one simple page for each, plus our recommendation.</div><h2>The 5 options at a glance</h2><div class='diagram avoid'><svg viewBox="0 0 760 400" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,sans-serif">
+<line x1="56.0" y1="26" x2="56.0" y2="354" stroke="#eef2f5" stroke-width="1"/>
+<line x1="56" y1="26.0" x2="740" y2="26.0" stroke="#eef2f5" stroke-width="1"/>
+<line x1="227.0" y1="26" x2="227.0" y2="354" stroke="#eef2f5" stroke-width="1"/>
+<line x1="56" y1="108.0" x2="740" y2="108.0" stroke="#eef2f5" stroke-width="1"/>
+<line x1="398.0" y1="26" x2="398.0" y2="354" stroke="#eef2f5" stroke-width="1"/>
+<line x1="56" y1="190.0" x2="740" y2="190.0" stroke="#eef2f5" stroke-width="1"/>
+<line x1="569.0" y1="26" x2="569.0" y2="354" stroke="#eef2f5" stroke-width="1"/>
+<line x1="56" y1="272.0" x2="740" y2="272.0" stroke="#eef2f5" stroke-width="1"/>
+<line x1="740.0" y1="26" x2="740.0" y2="354" stroke="#eef2f5" stroke-width="1"/>
+<line x1="56" y1="354.0" x2="740" y2="354.0" stroke="#eef2f5" stroke-width="1"/>
+<line x1="56" y1="354" x2="740" y2="354" stroke="#0f1720" stroke-width="1.6"/>
+<line x1="56" y1="26" x2="56" y2="354" stroke="#0f1720" stroke-width="1.6"/>
+<text x="398" y="390" text-anchor="middle" font-size="12" font-weight="700" fill="#0f1720">Effort &amp; compute needed  &#8594;</text>
+<text transform="translate(16,190) rotate(-90)" text-anchor="middle" font-size="12" font-weight="700" fill="#0f1720">Photorealism  &#8594;</text>
+<text x="58" y="368" font-size="9.5" fill="#9aa7b4">low</text>
+<text x="740" y="368" font-size="9.5" fill="#9aa7b4" text-anchor="end">high</text>
+<circle cx="261.2" cy="71.9" r="15" fill="#0ea5a4" opacity="0.12"/>
+<circle cx="261.2" cy="71.9" r="9.0" fill="#0ea5a4"/>
+<text x="273.2" y="75.9" text-anchor="start" font-size="11.5" font-weight="700" fill="#0f1720">Cloud splatting &#9733;</text>
+<circle cx="192.8" cy="91.6" r="6.5" fill="#6b7a89"/>
+<text x="204.8" y="95.6" text-anchor="start" font-size="11.5" font-weight="600" fill="#0f1720">Phone splatting</text>
+<circle cx="616.9" cy="42.4" r="6.5" fill="#6b7a89"/>
+<text x="604.9" y="46.4" text-anchor="end" font-size="11.5" font-weight="600" fill="#0f1720">Self-trained 3DGS</text>
+<circle cx="569.0" cy="173.6" r="6.5" fill="#6b7a89"/>
+<text x="557.0" y="177.6" text-anchor="end" font-size="11.5" font-weight="600" fill="#0f1720">Photogrammetry / NeRF</text>
+<circle cx="411.7" cy="222.8" r="6.5" fill="#6b7a89"/>
+<text x="423.7" y="226.8" text-anchor="start" font-size="11.5" font-weight="600" fill="#0f1720">monomap (our build)</text>
+</svg></div><p style='text-align:center;margin:-2px 0 2px'><small>Higher = more photorealistic &middot; Right = more effort/compute. The sweet spot (top-left) is cloud Gaussian splatting.</small></p>
+<table class='avoid'>
+<tr><th>Option</th><th>Engine</th><th>Runs where</th><th>Look</th><th>Effort</th><th>Cost</th><th>Our result so far</th></tr>
+<tr><td><b>1 &#9733; Cloud splatting</b><br><small>Luma / Polycam cloud</small></td><td>3D Gaussian Splatting</td><td>Their cloud GPU</td><td class='tag g'>Photoreal</td><td class='g'>Low</td><td>Free tier</td><td>Not tried yet &mdash; recommended next</td></tr>
+<tr><td><b>2 Phone splatting</b><br><small>Scaniverse</small></td><td>3D Gaussian Splatting</td><td>On the phone</td><td class='tag g'>Photoreal</td><td class='g'>Low</td><td>Free</td><td class='r'>3 scans failed (untrained / empty)</td></tr>
+<tr><td><b>3 Self-trained 3DGS</b><br><small>COLMAP + gsplat/Brush</small></td><td>3D Gaussian Splatting</td><td>Colab / laptop GPU</td><td class='tag g'>Best possible</td><td class='r'>High</td><td>Free (Colab)</td><td>Not tried &mdash; power option</td></tr>
+<tr><td><b>4 Photogrammetry / NeRF</b><br><small>COLMAP + Instant-NGP</small></td><td>NeRF &rarr; textured mesh</td><td>Laptop/Colab GPU</td><td class='tag a'>Good</td><td class='r'>High</td><td>Free</td><td>Reviewed &mdash; outdated vs splats</td></tr>
+<tr><td><b>5 monomap (ours)</b><br><small>Depth Anything + Open3D</small></td><td>Mono-depth point fusion</td><td>Your laptop (offline)</td><td class='tag r'>Rough</td><td class='a'>Medium</td><td>Free</td><td class='g'>Working &mdash; cloud + mesh + floormap</td></tr>
+</table><h2>What we have tried so far (the honest story)</h2>
+<table class='avoid'>
+<tr><th>Step we took</th><th>Result</th></tr>
+<tr><td>Built <b>monomap</b>: phone video &rarr; mono-depth &rarr; point cloud + mesh + floorplan (fully offline)</td><td class='g'>Works, but not photorealistic</td></tr>
+<tr><td>Realised Round 1 is scored on <b>photorealism + web roaming</b> &rarr; pivoted to <b>3D Gaussian Splatting</b></td><td class='g'>Right strategy for scoring</td></tr>
+<tr><td>Built a proper <b>web viewer app</b>: walk/orbit, loads &amp; <b>saves</b> the scan, live progress bar</td><td class='g'>Ready &amp; waiting for a scan</td></tr>
+<tr><td>Scaniverse scan #1 &rarr; exported a <b>mesh</b> by mistake (no splat, no texture)</td><td class='a'>Wrong export type</td></tr>
+<tr><td>Scaniverse scan #2 &amp; #3 &rarr; splat format correct, but <b>empty</b> (training never converged)</td><td class='r'>On-device training failed</td></tr>
+<tr><td><b>Decision:</b> move capture to a <b>cloud</b> splat service (far more reliable) &amp; keep monomap as the nav layer</td><td class='g'>Current plan</td></tr>
+</table><div class='box verdict avoid'><div class='t'>Verdict for the competition</div>Go with <b>Option 1 (cloud Gaussian splatting via Luma or Polycam)</b> for the Round-1 visual: photoreal, reliable, almost no compute on your side. Keep <b>Option 5 (monomap)</b> as the safety net and as the <b>navigation layer for Round 2</b> (it already outputs a floor-plan and occupancy map). Everything downstream &mdash; the SuperSplat clean-up and our web viewer &mdash; is <b>identical</b> no matter which option makes the splat.</div><div class='chips'><span class='chip'>Register by 15 Oct</span><span class='chip'>Round 1 due 31 Oct</span><span class='chip'>Capture: any tech allowed</span><span class='chip'>Deliverables: PDF + web link + video + repo</span></div><div class='foot'><span>Namma Space &middot; Round 1 &middot; 3D Reconstruction &amp; Roaming</span><span>Team Atharv &middot; prepared 2026-10-14</span></div>

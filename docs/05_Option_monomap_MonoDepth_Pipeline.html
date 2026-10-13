@@ -1,0 +1,87 @@
+<!doctype html><meta charset='utf-8'>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@page { size: A4; margin: 13mm 14mm; }
+*{box-sizing:border-box}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif;color:#1b2733;margin:0;font-size:12.3px;line-height:1.5}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.head{display:flex;align-items:flex-start;gap:14px;border-bottom:3px solid #0ea5a4;padding-bottom:12px;margin-bottom:16px}
+.badge{flex:none;width:46px;height:46px;border-radius:12px;background:#0ea5a4;color:#fff;font-weight:800;font-size:20px;
+  display:flex;align-items:center;justify-content:center}
+.badge.alt{background:#6366f1}.badge.rec{background:#0ea5a4}.badge.warn{background:#f59e0b}.badge.gray{background:#64748b}
+.head h1{margin:0;font-size:21px;font-weight:800;letter-spacing:-.2px;line-height:1.1}
+.head .sup{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#0ea5a4;font-weight:700}
+.head .sub{margin:3px 0 0;color:#5b6b7b;font-size:12px}
+.rec-pill{margin-left:auto;flex:none;background:#e6f7f6;color:#0a7d7a;border:1px solid #9fdedb;border-radius:999px;
+  padding:5px 12px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.rec-pill.red{background:#fdeaea;color:#b4232a;border-color:#f3b4b7}
+.rec-pill.amber{background:#fef3e0;color:#9a6508;border-color:#f3d8a3}
+h2{font-size:13.5px;font-weight:800;margin:18px 0 8px;padding-left:10px;border-left:4px solid #0ea5a4;letter-spacing:-.1px}
+.tldr{background:#f4fbfb;border:1px solid #bfe9e7;border-radius:12px;padding:12px 15px;margin:4px 0 6px;font-size:12.6px}
+.tldr b{color:#0a7d7a}
+.diagram{border:1px solid #e7edf2;border-radius:12px;padding:14px 12px 8px;margin:8px 0;background:#fff}
+.steps{counter-reset:s;margin:6px 0;padding:0;list-style:none}
+.steps li{counter-increment:s;position:relative;padding:4px 0 8px 30px;border-left:1.5px solid #e3e9ee;margin-left:11px}
+.steps li:last-child{border-left-color:transparent}
+.steps li::before{content:counter(s);position:absolute;left:-11px;top:2px;width:22px;height:22px;border-radius:50%;
+  background:#0ea5a4;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.steps li b{color:#12343a}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0}
+.col{border-radius:11px;padding:11px 13px;font-size:11.8px}
+.col.pro{background:#f0faf3;border:1px solid #bfe6cb}.col.con{background:#fdf1f1;border:1px solid #f1c9cb}
+.col h3{margin:0 0 6px;font-size:12px}.col.pro h3{color:#1a7e3f}.col.con h3{color:#b4232a}
+.col ul{margin:0;padding-left:16px}.col li{margin:3px 0}
+.box{border-radius:11px;padding:11px 14px;margin:8px 0;font-size:11.8px}
+.box.did{background:#fff8ec;border:1px solid #f3d9a5}.box.did b{color:#9a6508}
+.box.verdict{background:#eef7ff;border:1px solid #bcd9f5}.box.verdict b{color:#1760a8}
+.box .t{font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.box.did .t{color:#9a6508}.box.verdict .t{color:#1760a8}
+table{border-collapse:collapse;width:100%;font-size:10.6px;margin:8px 0}
+th,td{border:1px solid #e3e9ee;padding:6px 7px;text-align:left;vertical-align:top}
+th{background:#f3f7f9;font-weight:700;font-size:10.2px}
+td .tag{font-weight:700}
+.g{color:#1a7e3f}.r{color:#b4232a}.a{color:#9a6508}
+.foot{margin-top:18px;border-top:1px solid #e7edf2;padding-top:8px;color:#8c9aa7;font-size:9.6px;display:flex;justify-content:space-between}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin:6px 0}
+.chip{font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px;background:#eef2f5;color:#44525f}
+.avoid{break-inside:avoid}
+small{color:#6b7a89}
+</style>
+<div class='head'><div class='badge gray'>5</div><div><div class='sup'>Option 5 &middot; Reconstruction</div><h1>monomap &mdash; our own pipeline</h1><p class='sub'>Mono-depth AI &rarr; point cloud + mesh + floor-plan, fully offline.</p></div><div class="rec-pill ">Our build &middot; fallback + R2</div></div><div class='tldr'><b>In one line:</b> our own pipeline &mdash; estimate <b>depth</b> from each video frame with an AI model, fuse into a 3D point cloud + mesh + <b>floor-plan</b>, all <b>offline on your laptop</b>. Not photorealistic, but it's ours end-to-end and it already runs.</div><div class='diagram avoid'><svg viewBox="0 0 760 180" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,sans-serif">
+<rect x="0.0" y="16" width="129.6" height="112" rx="11" fill="#f3effe" stroke="#8b5cf6" stroke-width="1.8"/>
+<rect x="0.0" y="16" width="129.6" height="6" rx="3" fill="#8b5cf6"/>
+<text x="64.8" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="#0f1720">Phone video</text>
+<text x="64.8" y="68" text-anchor="middle" font-size="10" fill="#5b6b7b">a single camera</text>
+<line x1="133.6" y1="72.0" x2="151.6" y2="72.0" stroke="#9aa7b4" stroke-width="2"/>
+<path d="M 154.6 72.0 l -7 -4 l 0 8 z" fill="#9aa7b4"/>
+<rect x="157.6" y="16" width="129.6" height="112" rx="11" fill="#fef3e0" stroke="#f59e0b" stroke-width="1.8"/>
+<rect x="157.6" y="16" width="129.6" height="6" rx="3" fill="#f59e0b"/>
+<text x="222.4" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="#0f1720">Depth per frame</text>
+<text x="222.4" y="68" text-anchor="middle" font-size="10" fill="#5b6b7b">Depth Anything V2</text>
+<line x1="291.2" y1="72.0" x2="309.2" y2="72.0" stroke="#9aa7b4" stroke-width="2"/>
+<path d="M 312.2 72.0 l -7 -4 l 0 8 z" fill="#9aa7b4"/>
+<rect x="315.2" y="16" width="129.6" height="112" rx="11" fill="#fef3e0" stroke="#f59e0b" stroke-width="1.8"/>
+<rect x="315.2" y="16" width="129.6" height="6" rx="3" fill="#f59e0b"/>
+<text x="380.0" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="#0f1720">Fuse points</text>
+<text x="380.0" y="68" text-anchor="middle" font-size="10" fill="#5b6b7b">metric point cloud</text>
+<line x1="448.8" y1="72.0" x2="466.8" y2="72.0" stroke="#9aa7b4" stroke-width="2"/>
+<path d="M 469.8 72.0 l -7 -4 l 0 8 z" fill="#9aa7b4"/>
+<rect x="472.8" y="16" width="129.6" height="112" rx="11" fill="#fef3e0" stroke="#f59e0b" stroke-width="1.8"/>
+<rect x="472.8" y="16" width="129.6" height="6" rx="3" fill="#f59e0b"/>
+<text x="537.6" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="#0f1720">Mesh +</text>
+<text x="537.6" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="#0f1720">floor-plan</text>
+<text x="537.6" y="84" text-anchor="middle" font-size="10" fill="#5b6b7b">Poisson + occupancy</text>
+<line x1="606.4" y1="72.0" x2="624.4" y2="72.0" stroke="#9aa7b4" stroke-width="2"/>
+<path d="M 627.4 72.0 l -7 -4 l 0 8 z" fill="#9aa7b4"/>
+<rect x="630.4" y="16" width="129.6" height="112" rx="11" fill="#eaf1fe" stroke="#3b82f6" stroke-width="1.8"/>
+<rect x="630.4" y="16" width="129.6" height="6" rx="3" fill="#3b82f6"/>
+<text x="695.2" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="#0f1720">Web viewer</text>
+<text x="695.2" y="68" text-anchor="middle" font-size="10" fill="#5b6b7b">cloud / mesh, roam</text>
+<rect x="0.0" y="143" width="13" height="13" rx="3" fill="#f3effe" stroke="#8b5cf6"/>
+<text x="18.0" y="154" font-size="10.5" fill="#44525f">Phone capture</text>
+<rect x="146.6" y="143" width="13" height="13" rx="3" fill="#fef3e0" stroke="#f59e0b"/>
+<text x="164.6" y="154" font-size="10.5" fill="#44525f">Your laptop</text>
+<rect x="276.8" y="143" width="13" height="13" rx="3" fill="#eaf1fe" stroke="#3b82f6"/>
+<text x="294.8" y="154" font-size="10.5" fill="#44525f">In the browser</text>
+</svg></div><p style='text-align:center;margin:-2px 0 2px'><small>100% offline on your laptop. Uniquely also outputs an occupancy grid + floor-plan &mdash; the seed of Round-2 navigation.</small></p><h2>How it works, step by step</h2><ul class='steps'><li>Split the <b>phone video</b> into frames.</li><li><b>Depth Anything V2</b> predicts a depth map for every frame (metric indoor model &rarr; real metres).</li><li>Back-project + <b>fuse</b> the depths into one <b>metric point cloud</b> (~3.9 M points) with a camera path.</li><li>Build a <b>Poisson mesh</b>, detect planes, and rasterise a <b>floor-plan + 3D occupancy grid</b>.</li><li>View the colored cloud / mesh in the browser (and, for Round 2, the floor-plan for pathfinding).</li></ul><h2>Trade-offs</h2><div class='two avoid'><div class='col pro'><h3>&#10003; Strengths</h3><ul><li>Fully <b>offline</b> &mdash; no cloud, no account, private</li><li>Our own code &mdash; strongest 'pipeline soundness' story</li><li>Outputs a <b>floor-plan + occupancy map</b> (nav-ready)</li><li>Already working: cloud + mesh + floormap produced</li></ul></div><div class='col con'><h3>&#10007; Weaknesses</h3><ul><li><b>Not photorealistic</b> &mdash; mono-depth is noisy</li><li>Poisson mesh looks webby / imperfect</li><li>Needs the 4 GB GPU (Smart App Control sometimes blocks it)</li><li>Weaker on the 'visual fidelity' score than splats</li></ul></div></div><div class='chips'><span class='chip'>Tools: Depth Anything V2, Open3D</span><span class='chip'>Input: phone video</span><span class='chip'>Output: cloud + mesh + floor-plan</span><span class='chip'>Your compute: laptop (offline)</span><span class='chip'>Cost: free</span></div><div class='box did avoid'><div class='t'>What we actually did</div><b>Built and working.</b> Produced a 3.9 M-point metric cloud, a 400 K-triangle mesh, detected planes, and a ROS-style floor-plan + 3D occupancy grid from <span class='mono'>clip1.mp4</span>. We also built an offline browser viewer for it.</div><div class='box verdict avoid'><div class='t'>Verdict for the competition</div><b>Our safety net for Round 1</b> (ship it if no good splat lands) and the <b>navigation engine for Round 2</b> &mdash; the floor-plan + occupancy grid are exactly what obstacle-aware routing needs.</div><div class='foot'><span>Namma Space &middot; Round 1 &middot; 3D Reconstruction &amp; Roaming</span><span>Team Atharv &middot; prepared 2026-10-14</span></div>
