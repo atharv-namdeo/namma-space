@@ -1,0 +1,4 @@
+# scratch outputs (segments, previews); the alignment estimates are kept
+*
+!.gitignore
+!*_alignment.json

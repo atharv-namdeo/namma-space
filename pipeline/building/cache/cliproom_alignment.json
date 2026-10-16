@@ -1,0 +1,39 @@
+{
+  "toWorld": [
+    1.1447772340640736,
+    -0.12619152280899376,
+    0.0532695454819216,
+    0.0,
+    -0.11772631005200461,
+    -1.1356569271999613,
+    -0.16031444152157498,
+    0.21692261101675508,
+    0.07001757512398299,
+    0.15373972749417242,
+    -1.1404992309948605,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "source": "estimated",
+  "method": "ransac-floor + room-height scale + manhattan yaw",
+  "floorInliers": 807,
+  "upScene": [
+    -0.10210942005028101,
+    -0.9850072610043356,
+    -0.13904805682112664
+  ],
+  "scale": 1.1529426961198437,
+  "metric": false,
+  "scaleCue": "room-height",
+  "assumedCameraHeight": null,
+  "assumedRoomHeight": 3.0,
+  "medianCameraHeightScene": 0.14332578832160212,
+  "ceilingHeightScene": 2.6020373866769893,
+  "medianCameraHeightWorld": 0.16524642081100996,
+  "yawDeg": 356.5,
+  "sceneId": "cliproom",
+  "poses": "data/sample/clip1/poses.npy"
+}
