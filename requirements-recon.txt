@@ -1,0 +1,9 @@
+# Stages 1-2 (pipeline/capture, pipeline/recon): torch-free core.
+numpy>=1.24
+opencv-python>=4.8      # SIFT is in the main package since 4.4
+scipy>=1.10             # ICP refinement (cKDTree)
+pytest>=7               # tests/recon
+# Optional, NOT needed for build_scene / refine / merge / PoseCam (--depth-model none):
+#   torch, transformers, open3d, pillow  -> video --poses monomap, posecam --depth-model indoor
+#   ffmpeg on PATH                       -> faster frame extraction (falls back to OpenCV)
+#   Brush (brush_app)                    -> --trainer brush; gsplat runs on Colab/CUDA

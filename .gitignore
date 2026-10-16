@@ -43,3 +43,7 @@ credentials.json
 __pycache__/
 *.pyc
 .venv/
+
+# namma-space refine backups (pipeline/recon/refine.py)
+web/scenes/*/scene.v*.ply
+*.ply.tmp
