@@ -1,0 +1,733 @@
+<title>Namma Space — Interactive Indoor Twin</title>
+<meta name="description" content="Phone video → photorealistic Gaussian-splat indoor space you can walk, label, map room-by-room, and explore in VR. The full 5-stage Namma Space pipeline in one web viewer.">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+  :root{
+    --bg:#070a10; --panel:#0e141f; --panel-2:#131b29;
+    --fg:#e8eef7; --muted:#8a97ab; --line:#1f2a3c;
+    --accent:#49c9ff; --accent-dim:#1d6c8f; --good:#53d7a0; --warn:#ffb454; --bad:#ff6b73; --violet:#b48bff;
+    --r:14px; color-scheme:dark;
+    --ui:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    --display:"Sora",var(--ui); --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);overflow:hidden}
+  [hidden]{display:none!important}
+  #stage{position:fixed;inset:0}
+  #stage canvas{display:block;width:100%!important;height:100%!important}
+  #labelLayer{position:fixed;inset:0;z-index:15;pointer-events:none;overflow:hidden}
+
+  /* ---- 3D annotation chips (CSS2D) ---- */
+  .lbl{pointer-events:auto;cursor:pointer;user-select:none;transform:translate(-50%,-50%);
+    font-family:var(--mono);font-size:11.5px;font-weight:500;color:#06202b;white-space:nowrap;
+    background:var(--accent);border:1px solid #bfeaff;border-radius:99px;padding:3px 10px;
+    box-shadow:0 4px 14px rgba(0,0,0,.5);transition:transform .1s}
+  .lbl:hover{transform:translate(-50%,-50%) scale(1.07)}
+  .lbl::after{content:"";position:absolute;left:50%;top:100%;width:1px;height:14px;background:var(--accent);transform:translateX(-50%)}
+  .lbl.cat-door{background:var(--good);border-color:#bff0d8}
+  .lbl.cat-window{background:var(--warn);border-color:#ffe3b8}
+  .lbl.cat-furniture{background:var(--violet);border-color:#e2d4ff;color:#1d0f3a}
+  .lbl.cat-recapture{background:var(--bad);border-color:#ffc9cd;color:#2a0d0f}
+  .lbl.cat-recapture::after{background:var(--bad)}
+  .lbl.cat-door::after{background:var(--good)} .lbl.cat-window::after{background:var(--warn)}
+  .lbl.cat-furniture::after{background:var(--violet)}
+
+  /* ---- left rail (5 stages) ---- */
+  #rail{position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:24;display:none;
+    flex-direction:column;gap:8px}
+  #rail.show{display:flex}
+  .stageBtn{width:46px;height:46px;border-radius:12px;background:rgba(10,15,25,.82);border:1px solid var(--line);
+    color:var(--muted);font-family:var(--display);font-weight:700;font-size:17px;cursor:pointer;
+    display:grid;place-items:center;position:relative;backdrop-filter:blur(8px);transition:all .12s}
+  .stageBtn:hover{border-color:var(--accent-dim);color:var(--fg)}
+  .stageBtn.on{background:var(--accent);color:#05222e;border-color:var(--accent)}
+  .stageBtn .tip{position:absolute;left:54px;top:50%;transform:translateY(-50%);white-space:nowrap;
+    font-family:var(--ui);font-size:12px;font-weight:500;color:var(--fg);background:rgba(10,15,25,.92);
+    border:1px solid var(--line);border-radius:8px;padding:5px 9px;opacity:0;pointer-events:none;transition:opacity .12s}
+  .stageBtn:hover .tip{opacity:1}
+  .stageBtn .dot{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:99px;background:var(--good);display:none}
+  .stageBtn.has .dot{display:block}
+
+  /* ---- stage panel ---- */
+  #panel{position:fixed;left:70px;top:14px;bottom:14px;width:min(340px,calc(100vw - 84px));z-index:23;
+    display:none;flex-direction:column;background:rgba(12,18,28,.92);border:1px solid var(--line);
+    border-radius:var(--r);backdrop-filter:blur(12px);box-shadow:0 20px 60px rgba(0,0,0,.55);overflow:hidden}
+  #panel.show{display:flex}
+  #panelHead{padding:14px 16px 12px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:10px}
+  #panelHead .n{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--accent);text-transform:uppercase}
+  #panelHead h2{font-family:var(--display);font-size:17px;margin:2px 0 0;font-weight:700;line-height:1.15}
+  #panelHead p{margin:4px 0 0;font-size:11.5px;color:var(--muted);line-height:1.45}
+  #panelClose{margin-left:auto;width:26px;height:26px;flex:none;border-radius:8px;padding:0;font-size:15px;line-height:1}
+  #panelBody{padding:14px 16px;overflow:auto;flex:1}
+  .sect{margin-bottom:16px}
+  .sect:last-child{margin-bottom:0}
+  .lead{font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 10px}
+  .lead b{color:var(--fg);font-weight:600}
+  .row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
+  .kv{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;
+    padding:5px 0;border-bottom:1px dashed var(--line)}
+  .kv b{color:var(--fg);font-weight:600}
+  .chiplist{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+  .chip{display:flex;align-items:center;gap:8px;font-size:12px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:9px;padding:7px 9px}
+  .chip .sw{width:10px;height:10px;border-radius:3px;flex:none}
+  .chip .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chip button{padding:3px 7px;font-size:11px}
+  .tag{display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:99px;
+    border:1px solid var(--line);color:var(--muted)}
+  .tag.live{color:var(--good);border-color:rgba(83,215,160,.4);background:rgba(83,215,160,.08)}
+  .tag.soon{color:var(--warn);border-color:rgba(255,180,84,.4);background:rgba(255,180,84,.08)}
+  details{border:1px solid var(--line);border-radius:10px;padding:0 11px;background:var(--panel-2);margin-top:8px}
+  details summary{cursor:pointer;font-size:12px;font-weight:600;padding:9px 0;color:var(--fg)}
+  details .d{font-size:11.5px;color:var(--muted);line-height:1.55;padding-bottom:10px}
+  details ol{margin:0 0 10px;padding-left:18px;font-size:11.5px;color:var(--muted);line-height:1.6}
+
+  /* floorplan */
+  #plan{width:100%;border:1px solid var(--line);border-radius:10px;background:#0a0f18;display:block}
+  #plan .room{cursor:pointer;transition:fill .12s}
+  #plan .room.scanned{fill:rgba(73,201,255,.18)} #plan .room.scanned:hover{fill:rgba(73,201,255,.32)}
+  #plan .room.empty{fill:rgba(138,151,171,.06)} #plan .room.empty:hover{fill:rgba(138,151,171,.12)}
+  #plan text{font-family:var(--mono);font-size:9px;fill:var(--muted);pointer-events:none}
+  #plan text.on{fill:var(--accent)}
+
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .slabel{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:3px}
+
+  button{font:inherit;font-size:12.5px;font-weight:500;color:var(--fg);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;
+    transition:border-color .12s,color .12s,background .12s}
+  button:hover{border-color:var(--accent-dim)}
+  button.primary{background:var(--accent);color:#05222e;border-color:var(--accent);font-weight:600}
+  button.on{border-color:var(--accent);color:var(--accent)}
+  button.wide{width:100%}
+  button.danger:hover{border-color:var(--bad);color:var(--bad)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+
+  /* ---- start / load overlay ---- */
+  #overlay{position:fixed;inset:0;display:grid;place-items:center;padding:24px;
+    background:radial-gradient(120% 90% at 50% 0%,rgba(73,201,255,.08),transparent 60%),var(--bg);z-index:30;overflow:auto}
+  .card{width:min(560px,100%);background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:var(--r);padding:28px 26px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.08;margin:.35rem 0 .2rem;text-wrap:balance}
+  .sub{color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 18px}
+  .stages5{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:0 0 20px}
+  .stages5 div{text-align:center;font-size:10px;color:var(--muted);line-height:1.3}
+  .stages5 .num{display:block;margin:0 auto 5px;width:26px;height:26px;border-radius:8px;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--accent);font-family:var(--display);font-weight:700;font-size:13px;display:grid;place-items:center}
+  #drop{border:1.5px dashed var(--accent-dim);border-radius:var(--r);padding:22px 18px;text-align:center;
+    cursor:pointer;transition:border-color .15s,background .15s;background:rgba(73,201,255,.03)}
+  #drop:hover,#drop.hot{border-color:var(--accent);background:rgba(73,201,255,.09)}
+  #drop strong{color:var(--fg);font-size:15px}
+  #drop span{display:block;color:var(--muted);font-size:12.5px;margin-top:6px}
+  .fmts{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px}
+  #saved-row{margin-top:14px;display:none;align-items:center;gap:10px;font-size:13px;color:var(--good);
+    background:rgba(83,215,160,.07);border:1px solid rgba(83,215,160,.25);border-radius:10px;padding:10px 12px}
+  #saved-row.show{display:flex} #saved-row button{margin-left:auto}
+  .note{margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5}
+  .note b{color:var(--fg);font-weight:600}
+  kbd{font-family:var(--mono);font-size:11px;color:var(--fg);background:#0a0f18;border:1px solid var(--line);
+    border-bottom-width:2px;border-radius:6px;padding:2px 7px;min-width:22px;text-align:center}
+
+  /* ---- loading ---- */
+  #loading{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;background:var(--bg);z-index:40}
+  #loading.show{display:flex}
+  #loadlabel{font-family:var(--mono);font-size:13px;color:var(--fg);letter-spacing:.03em}
+  .bar{width:min(340px,74vw);height:7px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent-dim),var(--accent));border-radius:99px;transition:width .18s}
+  #loadsub{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+  /* ---- in-world HUD ---- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:20;display:none}
+  #hud.show{display:block}
+  #cross{position:absolute;left:50%;top:50%;width:14px;height:14px;transform:translate(-50%,-50%);opacity:.6}
+  #cross::before,#cross::after{content:"";position:absolute;background:var(--fg)}
+  #cross::before{left:6px;top:0;width:2px;height:14px} #cross::after{top:6px;left:0;height:2px;width:14px}
+  #hint{position:absolute;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+    font-family:var(--mono);font-size:12px;color:var(--muted);background:rgba(7,10,16,.72);
+    border:1px solid var(--line);border-radius:99px;padding:7px 14px;white-space:nowrap;backdrop-filter:blur(6px)}
+  #stats{position:absolute;right:14px;top:calc(12px + env(safe-area-inset-top,0px));
+    font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;line-height:1.7}
+  #stats b{color:var(--accent);font-weight:600}
+
+  #resume{position:fixed;inset:0;display:none;place-items:center;z-index:25;cursor:pointer;
+    background:rgba(7,10,16,.5);backdrop-filter:blur(3px)}
+  #resume.show{display:grid}
+  #resume div{font-family:var(--display);font-size:18px;color:var(--fg);background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--r);padding:16px 26px}
+
+  /* inspect card (digital twin) */
+  #inspect{position:fixed;right:14px;bottom:14px;z-index:26;width:min(300px,calc(100vw - 28px));display:none;
+    background:rgba(12,18,28,.95);border:1px solid var(--line);border-radius:var(--r);padding:16px;
+    box-shadow:0 18px 50px rgba(0,0,0,.6);backdrop-filter:blur(12px)}
+  #inspect.show{display:block}
+  #inspect .ih{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  #inspect .ih .sw{width:12px;height:12px;border-radius:4px}
+  #inspect h3{font-family:var(--display);font-size:16px;margin:0;flex:1}
+  #inspect .meta{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7}
+  #inspect textarea{width:100%;margin-top:8px;background:#0a0f18;border:1px solid var(--line);border-radius:8px;
+    color:var(--fg);font-family:var(--ui);font-size:12px;padding:8px;resize:vertical;min-height:52px}
+
+  #toast{position:fixed;left:50%;bottom:calc(74px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+    background:var(--panel);border:1px solid var(--line);color:var(--fg);font-size:13px;padding:10px 16px;
+    border-radius:10px;z-index:50;display:none;max-width:88vw;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  #toast.show{display:block}
+  #toast.err{background:#2a1113;border-color:#5b2327;color:#ffd9dc}
+
+  #vrdock{position:fixed;right:14px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:27}
+  @media (max-width:560px){ .stages5{gap:4px} h1{font-size:25px} #panel{left:66px} }
+</style>
+
+<div id="stage"></div>
+<div id="labelLayer"></div>
+
+<div id="hud">
+  <div id="cross"></div>
+  <div id="stats"></div>
+  <div id="hint">WASD move · drag to look · <kbd>Shift</kbd> run · <kbd>Space</kbd>/<kbd>C</kbd> up·down · <kbd>Esc</kbd> release</div>
+</div>
+
+<!-- 5-stage rail -->
+<div id="rail">
+  <button class="stageBtn" data-stage="1">1<span class="dot"></span><span class="tip">Capture &amp; fusion</span></button>
+  <button class="stageBtn on" data-stage="2">2<span class="dot"></span><span class="tip">Navigate</span></button>
+  <button class="stageBtn" data-stage="3">3<span class="dot"></span><span class="tip">Label objects (AI)</span></button>
+  <button class="stageBtn" data-stage="4">4<span class="dot"></span><span class="tip">Building map</span></button>
+  <button class="stageBtn" data-stage="5">5<span class="dot"></span><span class="tip">Explore in VR</span></button>
+</div>
+
+<!-- stage panel -->
+<div id="panel">
+  <div id="panelHead">
+    <div>
+      <div class="n" id="pN">Stage 2</div>
+      <h2 id="pTitle">Navigate</h2>
+      <p id="pDesc"></p>
+    </div>
+    <button id="panelClose">×</button>
+  </div>
+  <div id="panelBody"></div>
+</div>
+
+<div id="resume"><div>Click to keep walking</div></div>
+
+<!-- inspect / digital-twin card -->
+<div id="inspect">
+  <div class="ih"><span class="sw" id="iSw"></span><h3 id="iName">Object</h3><button id="iClose" style="padding:3px 8px">×</button></div>
+  <div class="meta" id="iMeta"></div>
+  <textarea id="iNote" placeholder="Digital-twin note / property…"></textarea>
+  <div class="row" style="margin-top:8px">
+    <button id="iGoto">Go to</button>
+    <button id="iDel" class="danger">Remove</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="card">
+    <div class="eyebrow">Namma Space · Interactive Indoor Twin</div>
+    <h1>Your room, as a space you can walk into</h1>
+    <p class="sub">Phone video → photorealistic 3D you can roam, label, map room-by-room, and step into in VR. Load the scan once — it's saved in this browser and reopens instantly.</p>
+    <div class="stages5">
+      <div><span class="num">1</span>Capture<br>&amp; fusion</div>
+      <div><span class="num">2</span>Navigate</div>
+      <div><span class="num">3</span>Label<br>objects</div>
+      <div><span class="num">4</span>Building<br>map</div>
+      <div><span class="num">5</span>Explore<br>in VR</div>
+    </div>
+    <div id="drop" tabindex="0" role="button" aria-label="Load a scan file">
+      <strong>Drop a scan here, or click to choose</strong>
+      <span>Your RoomSplat output (scene.ply) — or any .ply / .ksplat</span>
+      <div class="fmts">.ply · .ksplat · .splat</div>
+    </div>
+    <input id="file" type="file" accept=".ply,.ksplat,.splat" hidden>
+    <div id="saved-row"><span id="saved-text">Found a saved scan.</span><button class="primary" id="btnRestore">Reopen it</button></div>
+    <p class="note">The file never leaves your device. If the room looks tilted, open <b>Stage 2 → Fix tilt</b>. Big <b>.ply</b> scans load faster converted to <b>.ksplat</b> in SuperSplat first. The five stages unlock in the left rail once a scan is in.</p>
+  </div>
+</div>
+
+<div id="loading">
+  <div id="loadlabel">Preparing…</div>
+  <div class="bar"><i id="barfill"></i></div>
+  <div id="loadsub"></div>
+</div>
+<div id="toast"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/",
+    "@mkkellogg/gaussian-splats-3d": "https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+const $ = id => document.getElementById(id);
+const stage=$('stage'), overlay=$('overlay'), hud=$('hud'), loading=$('loading'),
+      barfill=$('barfill'), loadlabel=$('loadlabel'), loadsub=$('loadsub'),
+      resume=$('resume'), statsEl=$('stats'), rail=$('rail'), panel=$('panel'),
+      panelBody=$('panelBody'), labelLayer=$('labelLayer');
+
+const renderer = new THREE.WebGLRenderer({ antialias:false, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+stage.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer({ element: labelLayer });
+labelRenderer.setSize(innerWidth, innerHeight);
+
+const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.05, 1000);
+camera.position.set(0,0,0);
+const walkCtl = new PointerLockControls(camera, renderer.domElement);
+const orbitCtl = new OrbitControls(camera, renderer.domElement);
+orbitCtl.enableDamping = true; orbitCtl.dampingFactor = 0.08; orbitCtl.enabled = false;
+
+let viewer=null, running=false, loaded=false, mode='walk';
+let speed=1.8, rollSteps=0, sceneCenter=new THREE.Vector3(), sceneRadius=1, floorY=0;
+let splatMesh=null, labelGroup=null, labelScene=null, scanKey='scene';
+let labels=[];                 // {id,name,cat,obj,local:Vector3,note}
+let activeStage=2, fusionOn=false;
+const keys=Object.create(null), clock=new THREE.Clock();
+
+const CATS={ object:'#49c9ff', door:'#53d7a0', window:'#ffb454', furniture:'#b48bff', recapture:'#ff6b73' };
+
+/* ---------- tiny UI helpers ---------- */
+function toast(msg, isErr){ const t=$('toast'); t.textContent=msg; t.classList.toggle('err',!!isErr);
+  t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),4200); }
+function showLoading(label){ loadlabel.textContent=label||'Loading scan…'; loadsub.textContent='';
+  barfill.style.width='0%'; loading.classList.add('show'); }
+function setProgress(p,sub){ barfill.style.width=Math.max(0,Math.min(100,p||0)).toFixed(0)+'%';
+  if(sub!=null) loadsub.textContent=sub; }
+function hideLoading(){ loading.classList.remove('show'); }
+const mb = b => (b/1048576).toFixed(1)+' MB';
+const uid = () => Math.random().toString(36).slice(2,9);
+
+function fmtFromName(name){ const n=(name||'').toLowerCase();
+  if(n.endsWith('.ksplat')) return GaussianSplats3D.SceneFormat.KSplat;
+  if(n.endsWith('.splat'))  return GaussianSplats3D.SceneFormat.Splat;
+  return GaussianSplats3D.SceneFormat.Ply; }
+
+/* ---------- IndexedDB: persist the last scan ---------- */
+const DB='nammaspace', STORE='scan';
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(STORE);
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function idbSet(key,val){ try{ const db=await idb(); return await new Promise((res,rej)=>{
+  const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(val,key);
+  tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); }); }catch(e){ return false; } }
+async function idbGet(key){ try{ const db=await idb(); return await new Promise((res,rej)=>{
+  const tx=db.transaction(STORE,'readonly'); const rq=tx.objectStore(STORE).get(key);
+  rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }catch(e){ return undefined; } }
+async function idbDel(key){ try{ const db=await idb(); return await new Promise((res)=>{
+  const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).delete(key);
+  tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); }); }catch(e){ return false; } }
+
+/* ---------- viewer core ---------- */
+function newViewer(){
+  viewer = new GaussianSplats3D.Viewer({
+    selfDrivenMode:false, useBuiltInControls:false,
+    renderer, camera, sharedMemoryForWorkers:false,
+    gpuAcceleratedSort:true, antialiased:true, sphericalHarmonicsDegree:0
+  });
+}
+
+async function loadBuffer(buffer, name, roll){
+  overlay.style.display='none';
+  showLoading('Building splats…'); setProgress(2, name+' · '+mb(buffer.byteLength));
+  try{
+    if(viewer){ try{ await viewer.dispose(); }catch(e){} viewer=null; }
+    clearLabelsInternal();
+    newViewer();
+    const blob=new Blob([buffer]); const url=URL.createObjectURL(blob);
+    await viewer.addSplatScene(url, {
+      format:fmtFromName(name), progressiveLoad:false, splatAlphaRemovalThreshold:5, showLoadingUI:false,
+      onProgress:(pct)=>setProgress(pct, name+' · '+mb(buffer.byteLength))
+    });
+    URL.revokeObjectURL(url);
+    hideLoading(); loaded=true;
+    splatMesh = viewer.splatMesh;
+    labelScene = splatMesh.parent;                 // the viewer's internal scene
+    labelGroup = new THREE.Group(); splatMesh.add(labelGroup);
+    rollSteps=0; for(let i=0;i<((roll||0)%4+4)%4;i++) applyRoll(1,false);
+    scanKey = name.replace(/[^\w.-]/g,'_');
+    hud.classList.add('show'); rail.classList.add('show');
+    if(!running){ running=true; clock.start(); renderer.setAnimationLoop(frame); }
+    frameScene();
+    setMode('walk');
+    loadLabels();                                  // restore saved annotations for this scan
+    openStage(activeStage);
+  }catch(err){
+    hideLoading(); overlay.style.display='grid';
+    toast('Could not load that file: '+(err&&err.message?err.message:err), true);
+    console.error(err);
+  }
+}
+
+async function loadFile(file){
+  overlay.style.display='none';
+  showLoading('Reading file…'); setProgress(0, file.name+' · '+mb(file.size));
+  const buffer = await new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onprogress=e=>{ if(e.lengthComputable) setProgress(e.loaded/e.total*100, file.name+' · '+mb(e.loaded)+' / '+mb(e.total)); };
+    fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error);
+    fr.readAsArrayBuffer(file);
+  }).catch(err=>{ hideLoading(); overlay.style.display='grid'; toast('Could not read file: '+err,true); return null; });
+  if(!buffer) return;
+  const saved = await idbSet('last', {name:file.name, buffer, roll:0, ts:Date.now()});
+  await loadBuffer(buffer, file.name, 0);
+  if(saved) toast('Scan saved in this browser — it reopens automatically.');
+  else toast('Loaded (couldn’t cache for next time — private window?).');
+}
+
+function measureScene(){
+  if(!splatMesh) return;
+  const box=new THREE.Box3().setFromObject(splatMesh);
+  if(box.isEmpty()) return;
+  box.getCenter(sceneCenter);
+  const size=box.getSize(new THREE.Vector3());
+  sceneRadius=Math.max(size.x,size.z)*0.5+0.1;
+  floorY=box.min.y;
+  speed=Math.max(0.8, Math.min(4, sceneRadius*0.4));
+}
+function frameScene(){
+  measureScene(); if(!splatMesh) return;
+  const size=new THREE.Box3().setFromObject(splatMesh).getSize(new THREE.Vector3());
+  camera.position.set(sceneCenter.x, sceneCenter.y+size.y*0.05, sceneCenter.z+sceneRadius);
+  camera.lookAt(sceneCenter);
+  orbitCtl.target.copy(sceneCenter); orbitCtl.update();
+}
+function applyRoll(dir, persist=true){
+  if(!splatMesh) return;
+  splatMesh.rotateX(dir*Math.PI/2); rollSteps=(((rollSteps+dir)%4)+4)%4;
+  frameScene();
+  if(persist) idbGet('last').then(v=>{ if(v){ v.roll=rollSteps; idbSet('last',v); } });
+}
+function setMode(m){
+  mode=m; const walk = m==='walk';
+  orbitCtl.enabled = !walk;
+  $('hint').style.display = walk ? '' : 'none';
+  $('cross').style.display = walk ? '' : 'none';
+  if(!walk){ if(walkCtl.isLocked) walkCtl.unlock(); resume.classList.remove('show'); frameScene(); }
+  if(activeStage===2) openStage(2);
+}
+
+/* teleport the camera to a world point, looking at scene centre */
+function gotoPoint(p, look){
+  camera.position.copy(p);
+  camera.lookAt(look||sceneCenter);
+  orbitCtl.target.copy(look||sceneCenter); orbitCtl.update();
+}
+function waypoints(){
+  const c=sceneCenter, r=sceneRadius, y=c.y;
+  return [
+    {name:'Entrance', p:new THREE.Vector3(c.x, y, c.z+r*0.85)},
+    {name:'Centre',   p:new THREE.Vector3(c.x, y, c.z)},
+    {name:'Left wall',  p:new THREE.Vector3(c.x-r*0.7, y, c.z)},
+    {name:'Right wall', p:new THREE.Vector3(c.x+r*0.7, y, c.z)},
+    {name:'Far corner', p:new THREE.Vector3(c.x-r*0.6, y, c.z-r*0.7)},
+  ];
+}
+
+/* ---------- labels / annotations ---------- */
+function worldToLabelLocal(world){ return labelGroup.worldToLocal(world.clone()); }
+function makeLabelObj(l){
+  const div=document.createElement('div');
+  div.className='lbl cat-'+l.cat;
+  div.textContent=l.name;
+  div.addEventListener('click', ev=>{ ev.stopPropagation(); openInspect(l); });
+  const obj=new CSS2DObject(div); obj.position.copy(l.local); labelGroup.add(obj);
+  l.obj=obj; l.el=div;
+}
+function addLabel({name,cat,local,note}){
+  const l={id:uid(), name, cat:cat||'object', local:local.clone(), note:note||''};
+  makeLabelObj(l); labels.push(l); saveLabels(); refreshStageDots(); return l;
+}
+function addLabelAtView(name,cat){
+  if(!splatMesh) return;
+  const fwd=new THREE.Vector3(); camera.getWorldDirection(fwd);
+  const dist=Math.min(sceneRadius*0.9, 2.2);
+  const world=camera.position.clone().add(fwd.multiplyScalar(dist));
+  return addLabel({name, cat, local:worldToLabelLocal(world)});
+}
+function removeLabel(l){ if(l.obj) labelGroup.remove(l.obj); labels=labels.filter(x=>x!==l); saveLabels(); refreshStageDots(); }
+function clearLabelsInternal(){ labels.forEach(l=>{ if(l.obj&&labelGroup) labelGroup.remove(l.obj); }); labels=[]; }
+function sampleDetect(){
+  const c=sceneCenter, r=sceneRadius, y=c.y;
+  const samples=[
+    {name:'Door', cat:'door',      w:new THREE.Vector3(c.x, y, c.z+r*0.9)},
+    {name:'Window', cat:'window',  w:new THREE.Vector3(c.x+r*0.8, y+r*0.1, c.z-r*0.2)},
+    {name:'Desk', cat:'furniture', w:new THREE.Vector3(c.x-r*0.5, y-r*0.15, c.z-r*0.3)},
+    {name:'Chair', cat:'furniture',w:new THREE.Vector3(c.x-r*0.2, y-r*0.2, c.z+r*0.2)},
+    {name:'Wall outlet', cat:'object', w:new THREE.Vector3(c.x+r*0.5, y-r*0.05, c.z+r*0.6)},
+  ];
+  const have=new Set(labels.map(l=>l.name));
+  let n=0; samples.forEach(s=>{ if(!have.has(s.name)){ addLabel({name:s.name,cat:s.cat,local:worldToLabelLocal(s.w)}); n++; }});
+  toast(n?`Placed ${n} sample detections — click a chip to inspect.`:'Sample objects already placed.');
+}
+function saveLabels(){ try{ localStorage.setItem('ns.labels.'+scanKey,
+  JSON.stringify(labels.map(l=>({name:l.name,cat:l.cat,note:l.note,x:l.local.x,y:l.local.y,z:l.local.z})))); }catch(e){} }
+function loadLabels(){
+  clearLabelsInternal();
+  try{ const raw=localStorage.getItem('ns.labels.'+scanKey); if(raw){ JSON.parse(raw).forEach(d=>{
+    const l={id:uid(),name:d.name,cat:d.cat||'object',note:d.note||'',local:new THREE.Vector3(d.x,d.y,d.z)};
+    makeLabelObj(l); labels.push(l); }); } }catch(e){}
+  refreshStageDots();
+}
+function refreshStageDots(){
+  document.querySelector('.stageBtn[data-stage="3"]').classList.toggle('has', labels.some(l=>l.cat!=='recapture'));
+  document.querySelector('.stageBtn[data-stage="5"]').classList.toggle('has', labels.length>0);
+  document.querySelector('.stageBtn[data-stage="1"]').classList.toggle('has', labels.some(l=>l.cat==='recapture'));
+}
+
+/* inspect / digital-twin card */
+let inspectTarget=null;
+function openInspect(l){
+  inspectTarget=l;
+  $('iSw').style.background=CATS[l.cat]||CATS.object;
+  $('iName').textContent=l.name;
+  $('iMeta').innerHTML=`category&nbsp;&nbsp;<b style="color:var(--fg)">${l.cat}</b><br>`+
+    `anchor&nbsp;&nbsp;x ${l.local.x.toFixed(2)}  y ${l.local.y.toFixed(2)}  z ${l.local.z.toFixed(2)}<br>`+
+    `id&nbsp;&nbsp;${l.id}`;
+  $('iNote').value=l.note||'';
+  $('inspect').classList.add('show');
+}
+$('iClose').onclick=()=>{ $('inspect').classList.remove('show'); inspectTarget=null; };
+$('iNote').addEventListener('input', e=>{ if(inspectTarget){ inspectTarget.note=e.target.value; saveLabels(); } });
+$('iGoto').onclick=()=>{ if(!inspectTarget) return; const w=labelGroup.localToWorld(inspectTarget.local.clone());
+  const dir=w.clone().sub(camera.position).normalize(); const stand=w.clone().sub(dir.multiplyScalar(1.4));
+  gotoPoint(stand, w); };
+$('iDel').onclick=()=>{ if(inspectTarget){ removeLabel(inspectTarget); $('inspect').classList.remove('show'); inspectTarget=null; if(activeStage===3||activeStage===5) openStage(activeStage); } };
+
+/* ---------- stage panels ---------- */
+const STAGE_META={
+  1:{t:'Capture & sensor fusion', d:'Phone video in, solved camera poses out — optionally fused with depth for metric scale.'},
+  2:{t:'Navigate', d:'First-person free-roam through the reconstructed space, plus orbit and teleport.'},
+  3:{t:'Label objects (AI)', d:'Tag objects of interest as anchored 3D annotations over the splat.'},
+  4:{t:'Building map', d:'Hallway → rooms. Pick a room to drop into it; jump between viewpoints.'},
+  5:{t:'Explore in VR', d:'Step inside in WebXR and inspect objects as a lightweight digital twin.'},
+};
+function openStage(n){
+  activeStage=n;
+  document.querySelectorAll('.stageBtn').forEach(b=>b.classList.toggle('on', +b.dataset.stage===n));
+  $('pN').textContent='Stage '+n; $('pTitle').textContent=STAGE_META[n].t; $('pDesc').textContent=STAGE_META[n].d;
+  panelBody.innerHTML='';
+  ({1:paneCapture,2:paneNav,3:paneLabel,4:paneMap,5:paneVR}[n])();
+  panel.classList.add('show');
+}
+function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; }
+function add(html){ panelBody.appendChild(el(html)); }
+
+function paneCapture(){
+  const cnt = splatMesh&&splatMesh.getSplatCount ? splatMesh.getSplatCount() : 0;
+  add(`<div class="sect"><p class="lead">A handheld phone clip becomes solved camera poses, then a Gaussian-splat scene. <b>Re-shoot only the parts that look rough</b> and retrain — the rest of the room stays as-is.</p></div>`);
+  add(`<div class="sect">
+    <div class="kv"><span>Pipeline</span><b>video → frames → poses → splat</b></div>
+    <div class="kv"><span>This scene</span><b>${cnt?cnt.toLocaleString():'—'} splats</b></div>
+    <div class="kv"><span>Frames used</span><b>215 @ 640×360</b></div>
+    <div class="kv"><span>Trainer</span><b>Brush (wgpu, 4 GB)</b></div>
+  </div>`);
+  const fus=el(`<div class="sect"><div class="row"><button id="fus" class="${fusionOn?'on':''}">${fusionOn?'Depth fusion: ON':'Depth fusion: OFF'}</button></div>
+    <p class="lead">Nothing Phone 3a has no LiDAR/ToF, so depth comes from <b>ARCore Depth API</b> (ML monocular depth) to recover metric scale and sharpen thin structures. Toggle simulates the fused-scale pass.</p></div>`);
+  panelBody.appendChild(fus);
+  fus.querySelector('#fus').onclick=(e)=>{ fusionOn=!fusionOn; e.target.classList.toggle('on',fusionOn);
+    e.target.textContent=fusionOn?'Depth fusion: ON':'Depth fusion: OFF'; toast(fusionOn?'Metric-scale depth fusion engaged (demo).':'Back to vision-only poses.'); };
+  const rc=el(`<div class="sect"><div class="row"><button id="rc" class="wide">Flag region to re-capture</button></div>
+    <p class="lead">Drops a red flag where you're looking. These mark areas to re-shoot and refine <b>without disturbing the rest</b> of the scene.</p><div id="rclist" class="chiplist"></div></div>`);
+  panelBody.appendChild(rc);
+  rc.querySelector('#rc').onclick=()=>{ addLabelAtView('Re-capture','recapture'); paneCapture._fill(); };
+  paneCapture._fill=()=>{ const box=document.getElementById('rclist'); if(!box) return; const fl=labels.filter(l=>l.cat==='recapture');
+    box.innerHTML = fl.length?'':'<span class="lead" style="margin:0">No regions flagged.</span>';
+    fl.forEach(l=>{ const c=el(`<div class="chip"><span class="sw" style="background:${CATS.recapture}"></span><span class="nm">${l.name}</span><button>remove</button></div>`);
+      c.querySelector('button').onclick=()=>{ removeLabel(l); paneCapture._fill(); }; box.appendChild(c); }); };
+  paneCapture._fill();
+  add(`<details class="sect"><summary>Capture SOP</summary><ol>
+    <li>Scaniverse → Splat mode, or a slow phone video.</li><li>Loop the room 1–2 m from surfaces.</li>
+    <li>Cover walls, corners, floor, objects at several heights.</li><li>30–60 s, keep overlap; avoid fast pans.</li>
+    <li>Export .ply → load here.</li></ol></details>`);
+}
+function paneNav(){
+  add(`<div class="sect"><div class="row">
+    <button data-m="walk" class="${mode==='walk'?'on':''}">Walk</button>
+    <button data-m="orbit" class="${mode==='orbit'?'on':''}">Orbit</button>
+    <button id="reset">Reset view</button>
+    <button id="tilt">Fix tilt</button>
+  </div><p class="lead">Walk = WASD + mouse-look (click the scene to capture the cursor). Orbit = drag to turn the room. If it looks sideways, tap <b>Fix tilt</b>.</p></div>`);
+  panelBody.querySelector('[data-m="walk"]').onclick=()=>{ setMode('walk'); };
+  panelBody.querySelector('[data-m="orbit"]').onclick=()=>{ setMode('orbit'); };
+  panelBody.querySelector('#reset').onclick=()=>frameScene();
+  panelBody.querySelector('#tilt').onclick=()=>applyRoll(1);
+  const sp=el(`<div class="sect"><div class="slabel"><span>Move speed</span><b id="spv">${speed.toFixed(1)}</b></div>
+    <input id="sp" type="range" min="0.4" max="6" step="0.1" value="${speed}"></div>`);
+  panelBody.appendChild(sp);
+  sp.querySelector('#sp').addEventListener('input',e=>{ speed=+e.target.value; sp.querySelector('#spv').textContent=speed.toFixed(1); });
+  const wp=el(`<div class="sect"><p class="lead">Jump to a viewpoint:</p><div class="chiplist" id="wps"></div></div>`);
+  panelBody.appendChild(wp);
+  const box=wp.querySelector('#wps');
+  waypoints().forEach(w=>{ const c=el(`<div class="chip"><span class="nm">${w.name}</span><button>go</button></div>`);
+    c.querySelector('button').onclick=()=>{ setMode('orbit'); gotoPoint(w.p); toast('Jumped to '+w.name); }; box.appendChild(c); });
+}
+function paneLabel(){
+  add(`<div class="sect"><div class="row">
+      <button id="det" class="primary">Detect objects (sample)</button>
+    </div><p class="lead">Drops sample detections (door, window, furniture…) anchored on the splat. In the full pipeline this is <b>Grounding-DINO + SAM</b> on the source frames, projected onto the 3D scene.</p></div>`);
+  panelBody.querySelector('#det').onclick=()=>{ sampleDetect(); paneLabel._fill(); };
+  const man=el(`<div class="sect"><p class="lead">Or label by hand — aim at a thing and add:</p><div class="row">
+      <button data-c="object">+ Object</button><button data-c="door">+ Door</button>
+      <button data-c="window">+ Window</button><button data-c="furniture">+ Furniture</button>
+    </div></div>`);
+  panelBody.appendChild(man);
+  man.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const cat=b.dataset.c;
+    const name=prompt('Label name:', cat.charAt(0).toUpperCase()+cat.slice(1)); if(name){ const l=addLabelAtView(name,cat); paneLabel._fill(); if(l) openInspect(l); } });
+  const list=el(`<div class="sect"><div class="slabel"><span>Labels</span><b id="lc"></b></div><div class="chiplist" id="ll"></div></div>`);
+  panelBody.appendChild(list);
+  paneLabel._fill=()=>{ const box=document.getElementById('ll'); if(!box) return;
+    const ls=labels.filter(l=>l.cat!=='recapture'); const lc=document.getElementById('lc'); if(lc) lc.textContent=ls.length;
+    box.innerHTML = ls.length?'':'<span class="lead" style="margin:0">Nothing labelled yet.</span>';
+    ls.forEach(l=>{ const c=el(`<div class="chip"><span class="sw" style="background:${CATS[l.cat]}"></span><span class="nm">${l.name}</span><button>view</button></div>`);
+      c.querySelector('button').onclick=()=>openInspect(l); c.querySelector('.nm').style.cursor='pointer';
+      c.querySelector('.nm').onclick=()=>openInspect(l); box.appendChild(c); }); };
+  paneLabel._fill();
+}
+function paneMap(){
+  add(`<div class="sect"><p class="lead">A building is a graph of rooms off a hallway. The scanned room is <b>live</b>; others are placeholders until you scan them and stitch them in.</p></div>`);
+  add(`<svg id="plan" viewBox="0 0 300 200">
+    <rect x="20" y="86" width="260" height="28" rx="4" class="room empty" data-room="hall"/>
+    <text x="150" y="103" text-anchor="middle">HALLWAY</text>
+    <rect x="30" y="20" width="110" height="56" rx="4" class="room scanned" data-room="A"/>
+    <text x="85" y="46" text-anchor="middle" class="on">ROOM A · live</text>
+    <rect x="160" y="20" width="110" height="56" rx="4" class="room empty" data-room="B"/>
+    <text x="215" y="46" text-anchor="middle">ROOM B</text>
+    <rect x="30" y="124" width="110" height="56" rx="4" class="room empty" data-room="C"/>
+    <text x="85" y="154" text-anchor="middle">ROOM C</text>
+    <rect x="160" y="124" width="110" height="56" rx="4" class="room empty" data-room="D"/>
+    <text x="215" y="154" text-anchor="middle">ROOM D</text>
+  </svg>`);
+  add(`<div class="sect" id="roomctl"></div>`);
+  const ctl=document.getElementById('roomctl');
+  function enterA(){ setMode('orbit'); frameScene(); toast('Entered Room A (the live scan).');
+    ctl.innerHTML='<p class="lead" style="margin:0 0 8px"><b>Room A</b> — jump to a viewpoint:</p><div class="chiplist" id="rw"></div>';
+    const box=ctl.querySelector('#rw'); waypoints().forEach(w=>{ const c=el(`<div class="chip"><span class="nm">${w.name}</span><button>go</button></div>`);
+      c.querySelector('button').onclick=()=>{ gotoPoint(w.p); toast('→ '+w.name); }; box.appendChild(c); }); }
+  panelBody.querySelectorAll('#plan .room').forEach(r=>r.addEventListener('click',()=>{
+    const id=r.dataset.room;
+    if(id==='A') enterA();
+    else toast('Room '+(id==='hall'?'(hallway)':id)+' isn’t scanned yet — capture it to stitch it in.');
+  }));
+  enterA();
+}
+let vrInjected=false;
+function paneVR(){
+  add(`<div class="sect"><p class="lead">Step inside the room in <b>WebXR</b>. On a headset you get room-scale; on a phone in a cardboard viewer you get stereo look-around. Objects you labelled become inspectable — a lightweight <b>digital twin</b>.</p></div>`);
+  const dock=el(`<div class="sect" id="vrbtn"></div>`); panelBody.appendChild(dock);
+  if(navigator.xr){ const b=VRButton.createButton(renderer);
+    b.style.position='static'; b.style.transform='none'; b.style.margin='0'; b.style.width='100%';
+    dock.appendChild(b); }
+  else add(`<div class="sect"><span class="tag soon">WebXR not available in this browser</span><p class="lead" style="margin-top:8px">Open on an XR-capable browser/headset to enter. Desktop walk-through still works in Stage 2.</p></div>`);
+  const list=el(`<div class="sect"><div class="slabel"><span>Interactable objects</span><b>${labels.filter(l=>l.cat!=='recapture').length}</b></div><div class="chiplist" id="vl"></div></div>`);
+  panelBody.appendChild(list);
+  const box=list.querySelector('#vl');
+  const ls=labels.filter(l=>l.cat!=='recapture');
+  box.innerHTML = ls.length?'':'<span class="lead" style="margin:0">Label objects in Stage 3 first.</span>';
+  ls.forEach(l=>{ const c=el(`<div class="chip"><span class="sw" style="background:${CATS[l.cat]}"></span><span class="nm">${l.name}</span><button>inspect</button></div>`);
+    c.querySelector('button').onclick=()=>openInspect(l); box.appendChild(c); });
+  add(`<p class="lead" style="margin-top:4px">Note: the 2D label chips render on desktop; in-headset interaction uses the object list and gaze. Stereo splat rendering is experimental on 4 GB GPUs.</p>`);
+}
+
+/* ---------- inputs ---------- */
+const drop=$('drop'), fileInput=$('file');
+drop.addEventListener('click', ()=>fileInput.click());
+drop.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' ') fileInput.click(); });
+fileInput.addEventListener('change', e=>{ const f=e.target.files[0]; if(f) loadFile(f); fileInput.value=''; });
+['dragenter','dragover'].forEach(ev=>overlay.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('hot');}));
+['dragleave','drop'].forEach(ev=>overlay.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hot');}));
+overlay.addEventListener('drop', e=>{ const f=e.dataTransfer&&e.dataTransfer.files[0]; if(f) loadFile(f); });
+$('btnRestore').addEventListener('click', restoreSaved);
+
+rail.addEventListener('click', e=>{ const b=e.target.closest('.stageBtn'); if(b) openStage(+b.dataset.stage); });
+$('panelClose').addEventListener('click', ()=>panel.classList.remove('show'));
+
+/* pointer lock (walk mode only; ignore clicks on UI) */
+renderer.domElement.addEventListener('click', ()=>{ if(loaded && mode==='walk') walkCtl.lock(); });
+resume.addEventListener('click', ()=>{ if(mode==='walk') walkCtl.lock(); });
+walkCtl.addEventListener('lock',   ()=>resume.classList.remove('show'));
+walkCtl.addEventListener('unlock', ()=>{ if(loaded && mode==='walk') resume.classList.add('show'); });
+
+addEventListener('keydown', e=>{ keys[e.code]=true;
+  if(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if(e.code==='BracketLeft')  applyRoll(-1);
+  if(e.code==='BracketRight') applyRoll(1);
+  if(e.code==='KeyR') frameScene();
+  if(loaded && /^Digit[1-5]$/.test(e.code)) openStage(+e.code.slice(5));
+});
+addEventListener('keyup', e=>{ keys[e.code]=false; });
+
+function updateMove(dt){
+  if(mode!=='walk' || !walkCtl.isLocked) return;
+  const run=(keys['ShiftLeft']||keys['ShiftRight'])?3:1;
+  const v=speed*run*dt;
+  if(keys['KeyW']) walkCtl.moveForward(v);
+  if(keys['KeyS']) walkCtl.moveForward(-v);
+  if(keys['KeyA']) walkCtl.moveRight(-v);
+  if(keys['KeyD']) walkCtl.moveRight(v);
+  if(keys['Space']) camera.position.y+=v;
+  if(keys['KeyC']||keys['ControlLeft']) camera.position.y-=v;
+}
+
+let fpsT=0, frames=0, fps=0;
+function frame(){
+  const dt=Math.min(clock.getDelta(),0.05);
+  updateMove(dt);
+  if(mode==='orbit' && !renderer.xr.isPresenting) orbitCtl.update();
+  if(viewer && viewer.splatMesh){ viewer.update(); viewer.render(); }
+  if(labelScene && !renderer.xr.isPresenting) labelRenderer.render(labelScene, camera);
+  frames++; fpsT+=dt;
+  if(fpsT>=0.5){ fps=Math.round(frames/fpsT); frames=0; fpsT=0;
+    const p=camera.position;
+    statsEl.innerHTML=`<b>${fps}</b> fps<br>x ${p.x.toFixed(1)}  y ${p.y.toFixed(1)}  z ${p.z.toFixed(1)}`; }
+}
+
+addEventListener('resize', ()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight); labelRenderer.setSize(innerWidth,innerHeight);
+});
+
+/* ---------- startup: saved scan → bundled scene → load panel ---------- */
+async function restoreSaved(){
+  const v=await idbGet('last'); if(!v||!v.buffer){ toast('No saved scan found.',true); return; }
+  loadBuffer(v.buffer, v.name||'saved scan', v.roll||0);
+}
+(async function boot(){
+  const v=await idbGet('last');
+  if(v && v.buffer){
+    $('saved-text').textContent='Saved scan: '+(v.name||'scan')+' · '+mb(v.buffer.byteLength);
+    $('saved-row').classList.add('show');
+    restoreSaved(); return;
+  }
+  for(const f of ['scene.ksplat','scene.ply','scene.splat']){
+    try{ const head=await fetch(f,{method:'HEAD'});
+      if(head.ok){ overlay.style.display='none'; showLoading('Loading '+f+'…');
+        newViewer();
+        await viewer.addSplatScene(f,{format:fmtFromName(f),progressiveLoad:false,
+          splatAlphaRemovalThreshold:5,showLoadingUI:false,onProgress:p=>setProgress(p)});
+        hideLoading(); loaded=true;
+        splatMesh=viewer.splatMesh; labelScene=splatMesh.parent;
+        labelGroup=new THREE.Group(); splatMesh.add(labelGroup);
+        scanKey=f;
+        hud.classList.add('show'); rail.classList.add('show');
+        running=true; clock.start(); renderer.setAnimationLoop(frame); frameScene(); setMode('walk');
+        loadLabels(); openStage(2);
+        return; }
+    }catch(e){}
+  }
+})();
+</script>

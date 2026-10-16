@@ -40,3 +40,6 @@ credentials.json
 *.heic
 *.apk
 *.log
+__pycache__/
+*.pyc
+.venv/
