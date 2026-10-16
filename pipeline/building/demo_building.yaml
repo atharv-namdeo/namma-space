@@ -1,0 +1,72 @@
+# Demo floor for Namma Space (Techfest). ONE space is a real scan: Room A =
+# the cliproom capture (data/sample/clip1). Every other space is PLANNED: a
+# floor-plan polygon only, nothing has been scanned there yet. The web app
+# draws planned spaces as extruded floor-plan boxes.
+#
+# Coordinates: building frame = world frame (Y up, metres), plan axes x / z.
+# Room A uses identity placement: its scan frame (pipeline/building/cache/
+# cliproom_alignment.json, or scene.json toWorld once it exists) IS the
+# building frame. The scan's entrance (first camera) is at (0, 0), looking
+# along -Z into the room; the door onto the hallway is 0.3 m behind it.
+#
+# Rebuild:  python -m pipeline.building.compose --spec pipeline/building/demo_building.yaml \
+#             --out web/scenes/building.json --plan pipeline/building/demo_building
+name: Namma Space demo floor (1 scanned room, 4 planned spaces)
+description: >-
+  Room A is the real cliproom scan. Main hallway, Lab 101, Seminar Hall and
+  Washroom are planned placeholders (not scanned yet) so the building overview,
+  click-to-enter and cross-room routing can be demoed.
+floors:
+  - {id: G, name: Ground floor, elevation: 0.0}
+
+spaces:
+  - id: room-a
+    kind: room
+    name: Room A
+    floor: G
+    sceneId: cliproom
+    status: scanned
+    polygon:                      # derived from the scan's navgrid
+      fromNavgrid: web/scenes/cliproom/navgrid.json
+      mode: bbox                  # rectangle around everything the scan observed
+      pad: 0.0
+    placement: {yawDeg: 0, translate: [0, 0]}
+    # alternative: autoPlace: {door: d-room-a, inward: [0, -1], inset: 0.3}
+
+  - id: hall
+    kind: hallway
+    name: Main hallway (planned)
+    floor: G
+    status: planned
+    note: not scanned yet
+    polygon: [[-11.0, 0.3], [9.3, 0.3], [9.3, 2.7], [-11.0, 2.7]]
+
+  - id: lab-101
+    kind: room
+    name: Lab 101 (planned)
+    floor: G
+    status: planned
+    note: not scanned yet
+    polygon: [[3.3, -7.7], [9.3, -7.7], [9.3, 0.3], [3.3, 0.3]]
+
+  - id: seminar-hall
+    kind: room
+    name: Seminar Hall (planned)
+    floor: G
+    status: planned
+    note: not scanned yet
+    polygon: [[-11.0, -8.7], [-3.0, -8.7], [-3.0, 0.3], [-11.0, 0.3]]
+
+  - id: washroom
+    kind: room
+    name: Washroom (planned)
+    floor: G
+    status: planned
+    note: not scanned yet
+    polygon: [[0.5, 2.7], [4.5, 2.7], [4.5, 6.2], [0.5, 6.2]]
+
+doors:
+  - {id: d-room-a, between: [hall, room-a], position: [0.0, 0.3], width: 1.0}
+  - {id: d-lab-101, between: [hall, lab-101], position: [6.3, 0.3], width: 1.0}
+  - {id: d-seminar, between: [hall, seminar-hall], position: [-7.0, 0.3], width: 1.6}
+  - {id: d-washroom, between: [hall, washroom], position: [2.5, 2.7], width: 0.9}

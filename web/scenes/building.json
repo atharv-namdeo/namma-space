@@ -1,0 +1,250 @@
+{
+  "name": "Namma Space demo floor (1 scanned room, 4 planned spaces)",
+  "floors": [
+    {
+      "id": "G",
+      "name": "Ground floor",
+      "elevation": 0.0
+    }
+  ],
+  "spaces": [
+    {
+      "id": "room-a",
+      "kind": "room",
+      "name": "Room A",
+      "floor": "G",
+      "sceneId": "cliproom",
+      "polygon": [
+        [
+          -3.0,
+          -10.7
+        ],
+        [
+          3.3,
+          -10.7
+        ],
+        [
+          3.3,
+          0.3
+        ],
+        [
+          -3.0,
+          0.3
+        ]
+      ],
+      "status": "scanned",
+      "navgrid": "scenes/cliproom/navgrid.json",
+      "placement": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "area": 69.3,
+      "center": [
+        0.15,
+        -5.2
+      ],
+      "footprintFit": 1.0
+    },
+    {
+      "id": "hall",
+      "kind": "hallway",
+      "name": "Main hallway (planned)",
+      "floor": "G",
+      "sceneId": null,
+      "polygon": [
+        [
+          -11.0,
+          0.3
+        ],
+        [
+          9.3,
+          0.3
+        ],
+        [
+          9.3,
+          2.7
+        ],
+        [
+          -11.0,
+          2.7
+        ]
+      ],
+      "status": "planned",
+      "note": "not scanned yet",
+      "area": 48.72,
+      "center": [
+        -0.85,
+        1.5
+      ]
+    },
+    {
+      "id": "lab-101",
+      "kind": "room",
+      "name": "Lab 101 (planned)",
+      "floor": "G",
+      "sceneId": null,
+      "polygon": [
+        [
+          3.3,
+          -7.7
+        ],
+        [
+          9.3,
+          -7.7
+        ],
+        [
+          9.3,
+          0.3
+        ],
+        [
+          3.3,
+          0.3
+        ]
+      ],
+      "status": "planned",
+      "note": "not scanned yet",
+      "area": 48.0,
+      "center": [
+        6.3,
+        -3.7
+      ]
+    },
+    {
+      "id": "seminar-hall",
+      "kind": "room",
+      "name": "Seminar Hall (planned)",
+      "floor": "G",
+      "sceneId": null,
+      "polygon": [
+        [
+          -11.0,
+          -8.7
+        ],
+        [
+          -3.0,
+          -8.7
+        ],
+        [
+          -3.0,
+          0.3
+        ],
+        [
+          -11.0,
+          0.3
+        ]
+      ],
+      "status": "planned",
+      "note": "not scanned yet",
+      "area": 72.0,
+      "center": [
+        -7.0,
+        -4.2
+      ]
+    },
+    {
+      "id": "washroom",
+      "kind": "room",
+      "name": "Washroom (planned)",
+      "floor": "G",
+      "sceneId": null,
+      "polygon": [
+        [
+          0.5,
+          2.7
+        ],
+        [
+          4.5,
+          2.7
+        ],
+        [
+          4.5,
+          6.2
+        ],
+        [
+          0.5,
+          6.2
+        ]
+      ],
+      "status": "planned",
+      "note": "not scanned yet",
+      "area": 14.0,
+      "center": [
+        2.5,
+        4.45
+      ]
+    }
+  ],
+  "doors": [
+    {
+      "id": "d-room-a",
+      "between": [
+        "hall",
+        "room-a"
+      ],
+      "position": [
+        0.0,
+        0.0,
+        0.3
+      ],
+      "width": 1.0
+    },
+    {
+      "id": "d-lab-101",
+      "between": [
+        "hall",
+        "lab-101"
+      ],
+      "position": [
+        6.3,
+        0.0,
+        0.3
+      ],
+      "width": 1.0
+    },
+    {
+      "id": "d-seminar",
+      "between": [
+        "hall",
+        "seminar-hall"
+      ],
+      "position": [
+        -7.0,
+        0.0,
+        0.3
+      ],
+      "width": 1.6
+    },
+    {
+      "id": "d-washroom",
+      "between": [
+        "hall",
+        "washroom"
+      ],
+      "position": [
+        2.5,
+        0.0,
+        2.7
+      ],
+      "width": 0.9
+    }
+  ],
+  "scenes": {
+    "cliproom": "scenes/cliproom/scene.json"
+  },
+  "description": "Room A is the real cliproom scan. Main hallway, Lab 101, Seminar Hall and Washroom are planned placeholders (not scanned yet) so the building overview, click-to-enter and cross-room routing can be demoed.",
+  "generatedBy": "pipeline/building/compose.py"
+}
