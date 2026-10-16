@@ -47,3 +47,4 @@ __pycache__/
 # namma-space refine backups (pipeline/recon/refine.py)
 web/scenes/*/scene.v*.ply
 *.ply.tmp
+.claude/
